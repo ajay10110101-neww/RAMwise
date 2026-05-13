@@ -75,3 +75,6 @@ Thumbs.db
 # Environment variables
 .env
 .env.local
+
+# Local instruction files
+startandstopInstruction.md
