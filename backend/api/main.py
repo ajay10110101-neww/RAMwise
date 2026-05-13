@@ -1,10 +1,17 @@
+import os
+import sys
 import json
 import random
 import datetime
-
+import numpy as np
+import torch
+import torch.nn.functional as F
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from stable_baselines3 import PPO
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from transformer.model import AppTransformer, get_topk_predictions
 from api.schemas import (
     TelemetryInput,
     TelemetryResponse,
@@ -15,20 +22,55 @@ from api.schemas import (
 )
 from api.database import get_connection, init_db
 
-app = FastAPI(title="RAMWise API", version="1.0.0")
+VOCAB_SIZE = 17
+EMBED_DIM = 64
+NUM_HEADS = 4
+NUM_LAYERS = 2
+NUM_CLASSES = 16
+DROPOUT = 0.1
+MAX_SEQ_LEN = 10
+DEVICE = torch.device("cpu")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+TRANSFORMER_PATH = os.path.join(BASE_DIR, "models", "transformer_weights", "transformer_model.pt")
+RL_MODEL_PATH = os.path.join(BASE_DIR, "models", "rl_models", "ppo_ramwise.zip")
+BENCHMARK_RESULTS_PATH = os.path.join(BASE_DIR, "backend", "benchmarking", "benchmark_results.json")
 
+APP_ID_TO_NAME = {
+    1: "Chrome",
+    2: "WhatsApp",
+    3: "Instagram",
+    4: "Spotify",
+    5: "YouTube",
+    6: "Maps",
+    7: "Gmail",
+    8: "Twitter",
+    9: "Netflix",
+    10: "Camera",
+    11: "Photos",
+    12: "Settings",
+    13: "Calculator",
+    14: "Calendar",
+    15: "Files",
+}
 
-@app.on_event("startup")
-def startup():
-    init_db()
-
+APP_NAME_TO_ID = {
+    "Chrome": 1,
+    "WhatsApp": 2,
+    "Instagram": 3,
+    "Spotify": 4,
+    "YouTube": 5,
+    "Maps": 6,
+    "Gmail": 7,
+    "Twitter": 8,
+    "Netflix": 9,
+    "Camera": 10,
+    "Photos": 11,
+    "Settings": 12,
+    "Calculator": 13,
+    "Calendar": 14,
+    "Files": 15,
+}
 
 TRANSITION_MAP = {
     "Chrome": ["WhatsApp", "YouTube", "Gmail"],
@@ -47,6 +89,52 @@ TRANSITION_MAP = {
     "Calendar": ["Gmail", "Chrome", "WhatsApp"],
     "Files": ["Chrome", "Gmail", "Calculator"],
 }
+
+transformer_model = None
+ppo_model = None
+
+app = FastAPI(title="RAMWise API", version="2.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.on_event("startup")
+def load_models():
+    global transformer_model, ppo_model
+    init_db()
+
+    try:
+        model = AppTransformer(
+            VOCAB_SIZE, EMBED_DIM, NUM_HEADS, NUM_LAYERS, NUM_CLASSES, DROPOUT, MAX_SEQ_LEN
+        )
+        if os.path.exists(TRANSFORMER_PATH):
+            state_dict = torch.load(TRANSFORMER_PATH, map_location=DEVICE)
+            model.load_state_dict(state_dict)
+            model.eval()
+            transformer_model = model
+            print("Transformer model loaded successfully")
+        else:
+            transformer_model = None
+            print("WARNING: Transformer model not found, using heuristic fallback")
+    except Exception as e:
+        transformer_model = None
+        print(f"WARNING: Failed to load transformer model: {e}")
+
+    try:
+        if os.path.exists(RL_MODEL_PATH):
+            ppo_model = PPO.load(RL_MODEL_PATH, device="cpu")
+            print("PPO RL model loaded successfully")
+        else:
+            ppo_model = None
+            print("WARNING: PPO model not found, using rule-based fallback")
+    except Exception as e:
+        ppo_model = None
+        print(f"WARNING: Failed to load PPO model: {e}")
 
 
 @app.post("/telemetry", response_model=TelemetryResponse)
@@ -69,49 +157,113 @@ def record_telemetry(data: TelemetryInput):
 
 @app.get("/predict", response_model=PredictionResponse)
 def predict_next_apps(app_sequence: str = "Chrome,WhatsApp,Instagram"):
-    """Predict the next likely apps based on the given app sequence using heuristic transition lookup."""
-    apps = app_sequence.split(",")
-    last_app = apps[-1].strip()
+    """Predict the next likely apps using the trained Transformer model or heuristic fallback."""
+    apps = [a.strip() for a in app_sequence.split(",")]
 
-    if last_app in TRANSITION_MAP:
-        predicted_apps = TRANSITION_MAP[last_app]
+    if transformer_model is not None:
+        if len(apps) >= 2:
+            t1 = APP_NAME_TO_ID.get(apps[-2], 16)
+            t2 = APP_NAME_TO_ID.get(apps[-1], 16)
+        else:
+            t1 = 0
+            t2 = APP_NAME_TO_ID.get(apps[-1], 16)
+
+        token_seq_tensor = torch.tensor([[t1, t2]], dtype=torch.long)
+        context_tensor = torch.tensor([[0.65, 0.60, 0.40, 1.0]], dtype=torch.float32)
+        top_indices, top_probs = get_topk_predictions(transformer_model, token_seq_tensor, context_tensor, k=3)
+
+        predicted_apps = [APP_ID_TO_NAME.get(idx + 1, "Chrome") for idx in top_indices]
+        confidence_scores = [round(p, 4) for p in top_probs]
+        method = "transformer"
     else:
-        predicted_apps = ["Chrome", "WhatsApp", "YouTube"]
+        last_app = apps[-1]
+        if last_app in TRANSITION_MAP:
+            predicted_apps = TRANSITION_MAP[last_app]
+        else:
+            predicted_apps = ["Chrome", "WhatsApp", "YouTube"]
 
-    first = round(random.uniform(0.5, 0.7), 2)
-    second = round(random.uniform(0.2, 0.35), 2)
-    third = round(1.0 - first - second, 2)
-    confidence_scores = [first, second, third]
+        first = round(random.uniform(0.5, 0.7), 2)
+        second = round(random.uniform(0.2, 0.35), 2)
+        third = round(1.0 - first - second, 2)
+        confidence_scores = [first, second, third]
+        method = "heuristic"
 
     return PredictionResponse(
         predicted_apps=predicted_apps,
         confidence_scores=confidence_scores,
-        method="heuristic",
+        method=method,
     )
 
 
 @app.get("/allocate", response_model=AllocationResponse)
 def allocate_memory(app: str = "Chrome", ram_usage: int = 70, battery_level: int = 60):
-    """Determine memory allocation action for an app based on current RAM and battery state."""
-    if ram_usage < 60 and battery_level > 50:
-        action = "preload_app"
-        cache_tier = "HOT"
-        reason = "Low memory pressure and sufficient battery allows aggressive preloading"
-    elif 60 <= ram_usage <= 80:
-        action = "move_to_warm"
-        cache_tier = "WARM"
-        reason = "Moderate memory pressure, app moved to warm cache"
-    else:
-        action = "evict_app"
-        cache_tier = "COLD"
-        reason = "High memory pressure or low battery forces eviction"
+    """Determine memory allocation action using the trained PPO RL agent or rule-based fallback."""
+    if ppo_model is not None:
+        ram_norm = ram_usage / 100.0
+        battery_norm = battery_level / 100.0
+        predicted_app_id = APP_NAME_TO_ID.get(app, 1)
 
-    return AllocationResponse(
-        action=action,
-        target_app=app,
-        cache_tier=cache_tier,
-        reason=reason,
-    )
+        obs = np.array(
+            [
+                ram_norm,
+                battery_norm,
+                0.4,
+                0.4,
+                0.3,
+                0.3,
+                predicted_app_id / 15.0,
+                0.75,
+                0.05,
+                0.5,
+            ],
+            dtype=np.float32,
+        )
+
+        action, _ = ppo_model.predict(obs.reshape(1, -1), deterministic=True)
+        action_int = int(action[0]) if hasattr(action, "__len__") else int(action)
+
+        action_map = {
+            0: "preload_app",
+            1: "evict_app",
+            2: "move_to_hot",
+            3: "move_to_warm",
+            4: "move_to_cold",
+        }
+        tier_map = {0: "HOT", 1: "COLD", 2: "HOT", 3: "WARM", 4: "COLD"}
+        reason_map = {
+            0: "PPO agent predicts preloading will reduce future latency",
+            1: "PPO agent evicts to free memory under pressure",
+            2: "PPO agent promotes app to HOT for faster access",
+            3: "PPO agent moves app to WARM tier as buffer",
+            4: "PPO agent demotes app to COLD to save memory",
+        }
+
+        return AllocationResponse(
+            action=action_map.get(action_int, "move_to_warm"),
+            target_app=app,
+            cache_tier=tier_map.get(action_int, "WARM"),
+            reason=reason_map.get(action_int, "PPO agent default action"),
+        )
+    else:
+        if ram_usage < 60 and battery_level > 50:
+            action = "preload_app"
+            cache_tier = "HOT"
+            reason = "Low memory pressure and sufficient battery allows aggressive preloading"
+        elif 60 <= ram_usage <= 80:
+            action = "move_to_warm"
+            cache_tier = "WARM"
+            reason = "Moderate memory pressure, app moved to warm cache"
+        else:
+            action = "evict_app"
+            cache_tier = "COLD"
+            reason = "High memory pressure or low battery forces eviction"
+
+        return AllocationResponse(
+            action=action,
+            target_app=app,
+            cache_tier=cache_tier,
+            reason=reason,
+        )
 
 
 @app.get("/metrics", response_model=MetricsResponse)
@@ -145,26 +297,42 @@ def get_metrics():
 
 @app.get("/benchmark", response_model=BenchmarkResponse)
 def run_benchmark():
-    """Simulate a benchmark comparison between LRU and RAMWise caching strategies."""
-    lru_latency = round(random.uniform(1.8, 2.2), 2)
-    ramwise_latency = round(random.uniform(0.9, 1.2), 2)
-    lru_cache_hit_rate = round(random.uniform(0.55, 0.65), 2)
-    ramwise_cache_hit_rate = round(random.uniform(0.83, 0.91), 2)
-    lru_thrashing = round(random.uniform(0.35, 0.45), 2)
-    ramwise_thrashing = round(random.uniform(0.10, 0.18), 2)
+    """Return benchmark comparison between LRU and RAMWise from saved results or simulated fallback."""
+    if os.path.exists(BENCHMARK_RESULTS_PATH):
+        with open(BENCHMARK_RESULTS_PATH, "r") as f:
+            results = json.load(f)
 
-    latency_improvement = round(((lru_latency - ramwise_latency) / lru_latency) * 100, 1)
-    cache_improvement = round(((ramwise_cache_hit_rate - lru_cache_hit_rate) / lru_cache_hit_rate) * 100, 1)
-    thrashing_improvement = round(((lru_thrashing - ramwise_thrashing) / lru_thrashing) * 100, 1)
+        return BenchmarkResponse(
+            lru_latency=results["lru"]["avg_latency"],
+            ramwise_latency=results["ramwise"]["avg_latency"],
+            lru_cache_hit_rate=results["lru"]["avg_hit_rate"],
+            ramwise_cache_hit_rate=results["ramwise"]["avg_hit_rate"],
+            lru_thrashing=results["lru"]["avg_thrashing"],
+            ramwise_thrashing=results["ramwise"]["avg_thrashing"],
+            latency_improvement_percent=results["improvements"]["latency_improvement_percent"],
+            cache_improvement_percent=results["improvements"]["hit_rate_improvement_percent"],
+            thrashing_improvement_percent=results["improvements"]["thrashing_improvement_percent"],
+        )
+    else:
+        lru_latency = round(random.uniform(1.8, 2.2), 2)
+        ramwise_latency = round(random.uniform(0.9, 1.2), 2)
+        lru_cache_hit_rate = round(random.uniform(0.55, 0.65), 2)
+        ramwise_cache_hit_rate = round(random.uniform(0.83, 0.91), 2)
+        lru_thrashing = round(random.uniform(0.35, 0.45), 2)
+        ramwise_thrashing = round(random.uniform(0.10, 0.18), 2)
 
-    return BenchmarkResponse(
-        lru_latency=lru_latency,
-        ramwise_latency=ramwise_latency,
-        lru_cache_hit_rate=lru_cache_hit_rate,
-        ramwise_cache_hit_rate=ramwise_cache_hit_rate,
-        lru_thrashing=lru_thrashing,
-        ramwise_thrashing=ramwise_thrashing,
-        latency_improvement_percent=latency_improvement,
-        cache_improvement_percent=cache_improvement,
-        thrashing_improvement_percent=thrashing_improvement,
-    )
+        latency_improvement = round(((lru_latency - ramwise_latency) / lru_latency) * 100, 1)
+        cache_improvement = round(((ramwise_cache_hit_rate - lru_cache_hit_rate) / lru_cache_hit_rate) * 100, 1)
+        thrashing_improvement = round(((lru_thrashing - ramwise_thrashing) / lru_thrashing) * 100, 1)
+
+        return BenchmarkResponse(
+            lru_latency=lru_latency,
+            ramwise_latency=ramwise_latency,
+            lru_cache_hit_rate=lru_cache_hit_rate,
+            ramwise_cache_hit_rate=ramwise_cache_hit_rate,
+            lru_thrashing=lru_thrashing,
+            ramwise_thrashing=ramwise_thrashing,
+            latency_improvement_percent=latency_improvement,
+            cache_improvement_percent=cache_improvement,
+            thrashing_improvement_percent=thrashing_improvement,
+        )
