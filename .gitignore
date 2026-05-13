@@ -47,6 +47,20 @@ dashboard/.env.development.local
 dashboard/.env.test.local
 dashboard/.env.production.local
 
+# Android
+android-client/.gradle/
+android-client/build/
+android-client/app/build/
+android-client/local.properties
+android-client/*.apk
+android-client/*.aab
+android-client/captures/
+android-client/.externalNativeBuild/
+android-client/.cxx/
+android-client/gradle/
+android-client/gradlew
+android-client/gradlew.bat
+
 # IDE
 .vscode/
 .idea/
