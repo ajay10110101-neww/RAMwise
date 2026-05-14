@@ -77,6 +77,10 @@ Thumbs.db
 .env
 .env.local
 
+<<<<<<< Updated upstream
 # Local instruction files
 startandstopInstruction.md
 models/
+=======
+
+>>>>>>> Stashed changes
