@@ -22,55 +22,27 @@ from api.schemas import (
 )
 from api.database import get_connection, init_db
 
-VOCAB_SIZE = 17
-EMBED_DIM = 64
-NUM_HEADS = 4
-NUM_LAYERS = 2
-NUM_CLASSES = 16
+EMBED_DIM = 256
+NUM_HEADS = 8
+NUM_LAYERS = 3
 DROPOUT = 0.1
-MAX_SEQ_LEN = 10
+MAX_SEQ_LEN = 7
+CONTEXT_DIM = 2
 DEVICE = torch.device("cpu")
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-TRANSFORMER_PATH = os.path.join(BASE_DIR, "models", "transformer_weights", "transformer_model.pt")
+TOKENIZER_PATH = os.path.join(BASE_DIR, "datasets", "ubiqlog", "tokenizer.json")
+PER_USER_MODEL_DIR = os.path.join(BASE_DIR, "datasets", "ubiqlog", "per_user")
 RL_MODEL_PATH = os.path.join(BASE_DIR, "models", "rl_models", "ppo_ramwise.zip")
 BENCHMARK_RESULTS_PATH = os.path.join(BASE_DIR, "backend", "benchmarking", "benchmark_results.json")
 
-APP_ID_TO_NAME = {
-    1: "Chrome",
-    2: "WhatsApp",
-    3: "Instagram",
-    4: "Spotify",
-    5: "YouTube",
-    6: "Maps",
-    7: "Gmail",
-    8: "Twitter",
-    9: "Netflix",
-    10: "Camera",
-    11: "Photos",
-    12: "Settings",
-    13: "Calculator",
-    14: "Calendar",
-    15: "Files",
-}
-
-APP_NAME_TO_ID = {
-    "Chrome": 1,
-    "WhatsApp": 2,
-    "Instagram": 3,
-    "Spotify": 4,
-    "YouTube": 5,
-    "Maps": 6,
-    "Gmail": 7,
-    "Twitter": 8,
-    "Netflix": 9,
-    "Camera": 10,
-    "Photos": 11,
-    "Settings": 12,
-    "Calculator": 13,
-    "Calendar": 14,
-    "Files": 15,
-}
+with open(TOKENIZER_PATH, "r") as f:
+    tokenizer = json.load(f)
+VOCAB_SIZE = len(tokenizer)
+NUM_CLASSES = len(tokenizer)
+ID_TO_APP = {v: k for k, v in tokenizer.items()}
+APP_TO_ID = tokenizer
+APP_TO_ID_LOWER = {k.lower(): v for k, v in tokenizer.items()}
 
 TRANSITION_MAP = {
     "Chrome": ["WhatsApp", "YouTube", "Gmail"],
@@ -92,8 +64,9 @@ TRANSITION_MAP = {
 
 transformer_model = None
 ppo_model = None
+user_models = {}
 
-app = FastAPI(title="RAMWise API", version="2.0.0")
+app = FastAPI(title="RAMWise API", version="3.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -103,24 +76,40 @@ app.add_middleware(
 )
 
 
+def load_user_model(user_id: str):
+    if user_id in user_models:
+        return user_models[user_id]
+    path = os.path.join(PER_USER_MODEL_DIR, f"{user_id}.pth")
+    if not os.path.exists(path):
+        return transformer_model
+    try:
+        m = AppTransformer(VOCAB_SIZE, EMBED_DIM, NUM_HEADS, NUM_LAYERS, NUM_CLASSES, DROPOUT, MAX_SEQ_LEN, CONTEXT_DIM)
+        m.load_state_dict(torch.load(path, map_location=DEVICE))
+        m.eval()
+        user_models[user_id] = m
+        return m
+    except Exception as e:
+        print(f"WARNING: Failed to load model for user {user_id}: {e}")
+        return transformer_model
+
+
 @app.on_event("startup")
 def load_models():
     global transformer_model, ppo_model
     init_db()
 
+    GLOBAL_MODEL_PATH = os.path.join(BASE_DIR, "models", "transformer_weights", "global_model.pth")
+
     try:
-        model = AppTransformer(
-            VOCAB_SIZE, EMBED_DIM, NUM_HEADS, NUM_LAYERS, NUM_CLASSES, DROPOUT, MAX_SEQ_LEN
-        )
-        if os.path.exists(TRANSFORMER_PATH):
-            state_dict = torch.load(TRANSFORMER_PATH, map_location=DEVICE)
-            model.load_state_dict(state_dict)
+        model = AppTransformer(VOCAB_SIZE, EMBED_DIM, NUM_HEADS, NUM_LAYERS, NUM_CLASSES, DROPOUT, MAX_SEQ_LEN, CONTEXT_DIM)
+        if os.path.exists(GLOBAL_MODEL_PATH):
+            model.load_state_dict(torch.load(GLOBAL_MODEL_PATH, map_location=DEVICE))
             model.eval()
             transformer_model = model
-            print("Transformer model loaded successfully")
+            print("Global transformer model loaded successfully")
         else:
             transformer_model = None
-            print("WARNING: Transformer model not found, using heuristic fallback")
+            print("WARNING: global_model.pth not found, using heuristic fallback")
     except Exception as e:
         transformer_model = None
         print(f"WARNING: Failed to load transformer model: {e}")
@@ -144,8 +133,8 @@ def record_telemetry(data: TelemetryInput):
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO telemetry (foreground_app, ram_usage, cpu_usage, battery_level, timestamp) VALUES (?, ?, ?, ?, ?)",
-            (data.foreground_app, data.ram_usage, data.cpu_usage, data.battery_level, data.timestamp),
+            "INSERT INTO telemetry (user_id, foreground_app, ram_usage, cpu_usage, battery_level, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+            (data.user_id, data.foreground_app, data.ram_usage, data.cpu_usage, data.battery_level, data.timestamp),
         )
         conn.commit()
         new_id = cursor.lastrowid
@@ -156,23 +145,23 @@ def record_telemetry(data: TelemetryInput):
 
 
 @app.get("/predict", response_model=PredictionResponse)
-def predict_next_apps(app_sequence: str = "Chrome,WhatsApp,Instagram"):
-    """Predict the next likely apps using the trained Transformer model or heuristic fallback."""
+def predict_next_apps(app_sequence: str = "Chrome,WhatsApp", user_id: str = "default"):
+    """Predict the next likely apps using a per-user Transformer model or heuristic fallback."""
+    model = transformer_model
     apps = [a.strip() for a in app_sequence.split(",")]
 
-    if transformer_model is not None:
-        if len(apps) >= 2:
-            t1 = APP_NAME_TO_ID.get(apps[-2], 16)
-            t2 = APP_NAME_TO_ID.get(apps[-1], 16)
-        else:
-            t1 = 0
-            t2 = APP_NAME_TO_ID.get(apps[-1], 16)
+    if model is not None:
+        ids = [APP_TO_ID_LOWER.get(a.lower(), 0) for a in apps]
+        ids = ids[-7:]
+        while len(ids) < 7:
+            ids = [0] + ids
 
-        token_seq_tensor = torch.tensor([[t1, t2]], dtype=torch.long)
-        context_tensor = torch.tensor([[0.65, 0.60, 0.40, 1.0]], dtype=torch.float32)
-        top_indices, top_probs = get_topk_predictions(transformer_model, token_seq_tensor, context_tensor, k=3)
+        token_tensor = torch.tensor([ids], dtype=torch.long)
+        hour_norm = datetime.datetime.now().hour / 23.0
+        ctx_tensor = torch.tensor([[hour_norm, 0.5]], dtype=torch.float32)
 
-        predicted_apps = [APP_ID_TO_NAME.get(idx + 1, "Chrome") for idx in top_indices]
+        top_indices, top_probs = get_topk_predictions(model, token_tensor, ctx_tensor, k=3)
+        predicted_apps = [ID_TO_APP.get(idx, "unknown") for idx in top_indices]
         confidence_scores = [round(p, 4) for p in top_probs]
         method = "transformer"
     else:
@@ -201,7 +190,7 @@ def allocate_memory(app: str = "Chrome", ram_usage: int = 70, battery_level: int
     if ppo_model is not None:
         ram_norm = ram_usage / 100.0
         battery_norm = battery_level / 100.0
-        predicted_app_id = APP_NAME_TO_ID.get(app, 1)
+        predicted_app_id = APP_TO_ID.get(app, 1)
 
         obs = np.array(
             [
@@ -211,7 +200,7 @@ def allocate_memory(app: str = "Chrome", ram_usage: int = 70, battery_level: int
                 0.4,
                 0.3,
                 0.3,
-                predicted_app_id / 15.0,
+                predicted_app_id / max(len(tokenizer), 1),
                 0.75,
                 0.05,
                 0.5,

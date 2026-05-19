@@ -7,6 +7,7 @@ class TelemetryInput(BaseModel):
     cpu_usage: int = Field(ge=0, le=100)
     battery_level: int = Field(ge=0, le=100)
     timestamp: int
+    user_id: str = "default"
 
 
 class TelemetryResponse(BaseModel):

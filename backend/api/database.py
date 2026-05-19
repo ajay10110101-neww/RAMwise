@@ -16,6 +16,7 @@ def init_db():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS telemetry (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL DEFAULT 'default',
             foreground_app TEXT NOT NULL,
             ram_usage INTEGER NOT NULL,
             cpu_usage INTEGER NOT NULL,
@@ -33,4 +34,11 @@ def init_db():
         )
     """)
     conn.commit()
+
+    try:
+        cursor.execute("ALTER TABLE telemetry ADD COLUMN user_id TEXT NOT NULL DEFAULT 'default'")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+
     conn.close()

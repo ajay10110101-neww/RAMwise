@@ -1,0 +1,105 @@
+{
+  "model": "AppTransformer per-user v2",
+  "dataset": "UbiqLog UCI",
+  "seq_len": 5,
+  "embed_dim": 128,
+  "epochs": 80,
+  "vocab_size": 201,
+  "filters_applied": [
+    "session_gap_30min",
+    "consecutive_dedup",
+    "entropy_median"
+  ],
+  "users_trained": 13,
+  "models_saved": 6,
+  "avg_top1_all": 61.47,
+  "avg_top1_saved": 76.12,
+  "avg_top3_saved": 87.15,
+  "max_top1": 84.39,
+  "random_baseline_top1": 0.5,
+  "random_baseline_top3": 1.49,
+  "kpi_target_top1": 75.0,
+  "kpi_target_top3": 75.0,
+  "users_meeting_kpi_top1": 3,
+  "users_meeting_kpi_top3": 9,
+  "per_user": {
+    "14_F": {
+      "top1": 58.12,
+      "top3": 87.18,
+      "samples": 1754,
+      "saved": false
+    },
+    "16_F": {
+      "top1": 42.12,
+      "top3": 54.58,
+      "samples": 1361,
+      "saved": false
+    },
+    "17_F": {
+      "top1": 60.5,
+      "top3": 84.47,
+      "samples": 2187,
+      "saved": false
+    },
+    "23_F": {
+      "top1": 66.49,
+      "top3": 79.57,
+      "samples": 2789,
+      "saved": true
+    },
+    "24_F": {
+      "top1": 38.82,
+      "top3": 62.24,
+      "samples": 3307,
+      "saved": false
+    },
+    "26_F": {
+      "top1": 81.11,
+      "top3": 91.69,
+      "samples": 11668,
+      "saved": true
+    },
+    "29_F": {
+      "top1": 84.39,
+      "top3": 90.72,
+      "samples": 9640,
+      "saved": true
+    },
+    "2_F": {
+      "top1": 72.64,
+      "top3": 84.74,
+      "samples": 10290,
+      "saved": true
+    },
+    "31_F": {
+      "top1": 77.15,
+      "top3": 89.13,
+      "samples": 14265,
+      "saved": true
+    },
+    "34_F": {
+      "top1": 25.9,
+      "top3": 42.63,
+      "samples": 1252,
+      "saved": false
+    },
+    "35_F": {
+      "top1": 60.92,
+      "top3": 83.83,
+      "samples": 18115,
+      "saved": false
+    },
+    "7_F": {
+      "top1": 74.98,
+      "top3": 87.06,
+      "samples": 15103,
+      "saved": true
+    },
+    "8_M": {
+      "top1": 55.92,
+      "top3": 68.75,
+      "samples": 1516,
+      "saved": false
+    }
+  }
+}

@@ -70,7 +70,7 @@ class AppTransformer(nn.Module):
 
             nn.Linear(
                 embed_dim * 2,
-                128
+                embed_dim * 2
             ),
 
             nn.ReLU(),
@@ -78,7 +78,7 @@ class AppTransformer(nn.Module):
             nn.Dropout(dropout),
 
             nn.Linear(
-                128,
+                embed_dim * 2,
                 num_classes
             )
         )

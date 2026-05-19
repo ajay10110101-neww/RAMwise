@@ -3,8 +3,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LineChart,
 import axios from 'axios';
 import { getPredictions, getAllocation, getMetrics, getBenchmark, postTelemetry } from './api';
 import type { PredictionData, AllocationData, MetricsData, BenchmarkData } from './api';
+import PredictionFeed from './PredictionFeed';
 
-const APP_SEQUENCE = ["Chrome", "WhatsApp", "Instagram", "Spotify", "YouTube", "Maps", "Gmail", "Twitter", "Netflix", "Camera"];
+const APP_SEQUENCE = ["whatsapp", "youtube", "camera", "maps", "gallery", "music", "calendar", "contacts", "playstore", "acalendar"];
 const SEQUENCE_INTERVAL_MS = 3000;
 
 function MetricsCard({ label, value, color }: { label: string; value: string; color: string }) {
@@ -280,6 +281,10 @@ function App() {
         ) : (
           <div style={{ color: "#666", fontSize: "0.8rem" }}>Loading benchmark data...</div>
         )}
+      </div>
+
+      <div style={{ background: "#1a1a2e", borderRadius: "8px", padding: "16px", marginBottom: "20px", border: "1px solid #333" }}>
+        <PredictionFeed />
       </div>
 
       <p style={{ textAlign: "center", color: "#444", marginTop: "40px" }}>RAMWise — Context-Aware Adaptive Memory Management | Built with FastAPI + PyTorch + PPO + React</p>
