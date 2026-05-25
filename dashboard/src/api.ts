@@ -53,8 +53,8 @@ export async function getPredictions(appSequence: string): Promise<PredictionDat
   return response.data;
 }
 
-export async function getAllocation(app: string, ramUsage: number, batteryLevel: number): Promise<AllocationData> {
-  const response = await axios.get(`${BASE_URL}/allocate?app=${app}&ram_usage=${ramUsage}&battery_level=${batteryLevel}`);
+export async function getAllocation(appSequence: string, ramUsage: number, batteryLevel: number): Promise<AllocationData> {
+  const response = await axios.get(`${BASE_URL}/allocate?app_sequence=${appSequence}&ram_usage=${ramUsage}&battery_level=${batteryLevel}`);
   return response.data;
 }
 

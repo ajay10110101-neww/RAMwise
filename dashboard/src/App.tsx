@@ -5,7 +5,7 @@ import { getPredictions, getAllocation, getMetrics, getBenchmark, postTelemetry 
 import type { PredictionData, AllocationData, MetricsData, BenchmarkData } from './api';
 import PredictionFeed from './PredictionFeed';
 
-const APP_SEQUENCE = ["whatsapp", "youtube", "camera", "maps", "gallery", "music", "calendar", "contacts", "playstore", "acalendar"];
+const APP_SEQUENCE = ["client", "cms", "home", "music", "camera", "gallery", "contacts", "dialer", "browser", "whatsapp", "youtube", "maps", "weather", "calendar", "mail", "firefox", "gallery", "music", "client", "cms", "home", "contacts", "dialer", "camera", "whatsapp"];
 const SEQUENCE_INTERVAL_MS = 3000;
 
 function MetricsCard({ label, value, color }: { label: string; value: string; color: string }) {
@@ -94,7 +94,7 @@ function App() {
 
         const [predData, allocData, metricsData] = await Promise.all([
           getPredictions(appSeqString),
-          getAllocation(currentApp, ramValue, batteryLevel),
+          getAllocation(appSeqString, ramValue, batteryLevel),
           getMetrics(),
         ]);
 

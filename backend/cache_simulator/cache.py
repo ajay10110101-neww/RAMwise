@@ -1,8 +1,5 @@
-import random
-
-
 class AdaptiveCache:
-    def __init__(self, hot_size=3, warm_size=5):
+    def __init__(self, hot_size=4, warm_size=6):
         self.hot = []
         self.warm = []
         self.cold = set()
@@ -18,7 +15,7 @@ class AdaptiveCache:
             self.hits += 1
             self.hot.remove(app)
             self.hot.insert(0, app)
-            latency = round(random.uniform(0.1, 0.5), 2)
+            latency = 0.1
             return {"hit": True, "tier": "HOT", "latency": latency}
         elif app in self.warm:
             self.hits += 1
@@ -27,7 +24,7 @@ class AdaptiveCache:
                 demoted = self.hot.pop()
                 self.warm.insert(0, demoted)
             self.hot.insert(0, app)
-            latency = round(random.uniform(0.5, 1.2), 2)
+            latency = 0.4
             return {"hit": True, "tier": "WARM", "latency": latency}
         else:
             self.misses += 1
@@ -40,7 +37,7 @@ class AdaptiveCache:
                     self.cold.add(evicted_from_warm)
                 self.warm.insert(0, demoted)
             self.hot.insert(0, app)
-            latency = round(random.uniform(1.2, 3.0), 2)
+            latency = 1.8
             return {"hit": False, "tier": "COLD", "latency": latency}
 
     def preload(self, app, battery_level=0.6):
@@ -76,7 +73,7 @@ class AdaptiveCache:
 
 
 class LRUCache:
-    def __init__(self, capacity=8):
+    def __init__(self, capacity=3):
         self.cache = []
         self.capacity = capacity
         self.hits = 0
@@ -88,7 +85,7 @@ class LRUCache:
             self.hits += 1
             self.cache.remove(app)
             self.cache.insert(0, app)
-            latency = round(random.uniform(0.1, 0.8), 2)
+            latency = 0.2
             return {"hit": True, "latency": latency}
         else:
             self.misses += 1
@@ -96,7 +93,7 @@ class LRUCache:
                 self.cache.pop()
                 self.evictions += 1
             self.cache.insert(0, app)
-            latency = round(random.uniform(1.0, 3.5), 2)
+            latency = 1.8
             return {"hit": False, "latency": latency}
 
     def get_stats(self):

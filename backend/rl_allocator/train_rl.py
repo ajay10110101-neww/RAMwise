@@ -6,7 +6,7 @@ import json
 import os
 import numpy as np
 
-TOTAL_TIMESTEPS = 50000
+TOTAL_TIMESTEPS = 200000
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_SAVE_PATH = os.path.join(SCRIPT_DIR, "..", "..", "models", "rl_models", "ppo_ramwise")
 LOG_PATH = os.path.join(SCRIPT_DIR, "..", "..", "models", "rl_models", "rl_training_log.json")
