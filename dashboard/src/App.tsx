@@ -8,39 +8,259 @@ import PredictionFeed from './PredictionFeed';
 const APP_SEQUENCE = ["client", "cms", "home", "music", "camera", "gallery", "contacts", "dialer", "browser", "whatsapp", "youtube", "maps", "weather", "calendar", "mail", "firefox", "gallery", "music", "client", "cms", "home", "contacts", "dialer", "camera", "whatsapp"];
 const SEQUENCE_INTERVAL_MS = 3000;
 
+const GLOBAL_STYLES = `
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+@keyframes slideInLeft {
+  from { transform: translateX(-30px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes fadeInUp {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes borderSweep {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 5px currentColor; }
+  50% { box-shadow: 0 0 20px currentColor, 0 0 40px currentColor; }
+}
+@keyframes cursorBlink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes warningFlash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+@keyframes typewriter {
+  from { width: 0; }
+  to { width: 100%; }
+}
+@keyframes glowPulse {
+  0%, 100% { text-shadow: 0 0 10px rgba(0,255,136,0.3); }
+  50% { text-shadow: 0 0 30px rgba(0,255,136,0.8), 0 0 60px rgba(0,255,136,0.4); }
+}
+
+body {
+  margin: 0;
+  background: #0a0a14;
+}
+
+.ramwise-grid-bg {
+  background-image: radial-gradient(circle, #1a1a2e 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.card-border-animated {
+  position: relative;
+  border: none !important;
+  overflow: hidden;
+}
+.card-border-animated::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  padding: 1.5px;
+  background: linear-gradient(270deg, #00ff88, #4488ff, #ff8800, #00ff88);
+  background-size: 300% 300%;
+  animation: borderSweep 3s ease infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.glow-line-ram {
+  filter: drop-shadow(0 0 4px #00ff88) drop-shadow(0 0 8px rgba(0,255,136,0.3));
+}
+.glow-line-cpu {
+  filter: drop-shadow(0 0 4px #ff6b6b) drop-shadow(0 0 8px rgba(255,107,107,0.3));
+}
+
+.tier-active-glow {
+  animation: slideInLeft 0.4s ease forwards;
+}
+.tier-inactive-scanlines {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255,255,255,0.02) 2px,
+    rgba(255,255,255,0.02) 4px
+  );
+}
+
+.confidence-bar-animated div {
+  transition: width 0.6s ease;
+}
+
+.shimmer-badge {
+  background: linear-gradient(90deg, #1b5e20 25%, #2e7d32 50%, #1b5e20 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+.action-slide-up {
+  animation: slideUp 0.4s ease forwards;
+}
+
+.reason-typewriter {
+  overflow: hidden;
+  white-space: nowrap;
+  animation: typewriter 1.5s steps(60) forwards;
+}
+
+.battery-warning {
+  animation: warningFlash 0.8s ease infinite;
+}
+
+.metric-spark {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 1.5s ease infinite;
+}
+
+.custom-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scroll::-webkit-scrollbar-track {
+  background: #0f0f1a;
+}
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+`;
+
+function TypewriterText({ text }: { text: string }) {
+  const [displayed, setDisplayed] = useState('');
+  const indexRef = useRef(0);
+
+  useEffect(() => {
+    setDisplayed('');
+    indexRef.current = 0;
+    const interval = setInterval(() => {
+      if (indexRef.current < text.length) {
+        setDisplayed(text.slice(0, indexRef.current + 1));
+        indexRef.current++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 20);
+    return () => clearInterval(interval);
+  }, [text]);
+
+  return <span>{displayed}<span style={{ animation: 'cursorBlink 1s infinite', color: '#888' }}>|</span></span>;
+}
+
 function MetricsCard({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div style={{ background: "#1a1a2e", borderRadius: "8px", padding: "16px", flex: 1, margin: "0 8px", border: "1px solid #333" }}>
-      <div style={{ color: "#888", fontSize: "0.75rem", marginBottom: "8px" }}>{label}</div>
-      <div style={{ color: color, fontSize: "1.5rem", fontWeight: "bold" }}>{value}</div>
+    <div className="card-border-animated" style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: "8px", padding: "16px", flex: 1, margin: "0 8px", position: 'relative', border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 4px 24px rgba(0,0,0,0.4)" }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: "8px" }}>
+        <span className="metric-spark" style={{ background: color }} />
+        <span style={{ color: "#666", fontSize: "0.7rem", letterSpacing: "0.05em", textTransform: "uppercase" }}>{label}</span>
+      </div>
+      <div style={{ color: color, fontSize: "1.5rem", fontWeight: "bold", fontFamily: "'JetBrains Mono', monospace" }}>{value}</div>
     </div>
   );
 }
 
 function CacheTierBox({ tier, label, color, isActive, app }: { tier: string; label: string; color: string; isActive: boolean; app: string }) {
   return (
-    <div style={{
-      background: isActive ? color : "#2a1a1a",
-      border: `2px solid ${color}`,
-      borderRadius: "8px",
-      padding: "12px",
-      marginBottom: "8px",
-      opacity: isActive ? 1 : 0.5,
-    }}>
-      <div style={{ fontSize: "0.85rem", fontWeight: "bold" }}>{label}</div>
-      {isActive && <div style={{ fontSize: "0.75rem", marginTop: "4px" }}>→ {app}</div>}
+    <div
+      className={isActive ? "tier-active-glow" : "tier-inactive-scanlines"}
+      style={{
+        background: isActive ? `linear-gradient(135deg, ${color}22, ${color}44)` : "#16162a",
+        border: `1px solid ${isActive ? color : '#222'}`,
+        borderRadius: "8px",
+        padding: "12px",
+        marginBottom: "8px",
+        opacity: isActive ? 1 : 0.4,
+        color: isActive ? '#fff' : '#555',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      <div style={{ fontSize: "0.85rem", fontWeight: "bold", position: 'relative' }}>{label}</div>
+      {isActive && <div style={{ fontSize: "0.75rem", marginTop: "4px", color: color, fontFamily: "'JetBrains Mono', monospace", position: 'relative' }}>{"->"} {app}</div>}
     </div>
   );
 }
 
-function PredictionRow({ app, confidence }: { app: string; confidence: number }) {
+function PredictionRow({ app, confidence, rank }: { app: string; confidence: number; rank: number }) {
+  const rankColors = ["#00ff88", "#4488ff", "#ff8800"];
   return (
-    <div style={{ display: "flex", alignItems: "center", marginBottom: "8px" }}>
-      <div style={{ width: "80px", fontSize: "0.8rem" }}>{app}</div>
-      <div style={{ flex: 1, background: "#333", borderRadius: "4px", height: "16px", marginRight: "8px" }}>
-        <div style={{ background: "#00ff88", height: "100%", borderRadius: "4px", width: `${confidence * 100}%` }} />
+    <div style={{ marginBottom: "10px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <span style={{
+            fontSize: "0.6rem",
+            color: rankColors[rank],
+            background: "rgba(255,255,255,0.05)",
+            border: `1px solid ${rankColors[rank]}44`,
+            borderRadius: "4px",
+            padding: "1px 5px",
+            fontWeight: "bold",
+          }}>#{rank + 1}</span>
+          <span style={{ fontSize: "0.8rem", color: "#ccc", wordBreak: "break-all" }}>{app}</span>
+        </div>
+        <span style={{ fontSize: "0.75rem", color: rankColors[rank], fontWeight: "bold", marginLeft: "8px", flexShrink: 0 }}>
+          {(confidence * 100).toFixed(1)}%
+        </span>
       </div>
-      <div style={{ width: "45px", fontSize: "0.75rem", textAlign: "right" }}>{(confidence * 100).toFixed(1)}%</div>
+      <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: "4px", height: "6px", width: "100%" }}>
+        <div style={{
+          background: rankColors[rank],
+          height: "100%",
+          borderRadius: "4px",
+          width: `${confidence * 100}%`,
+          transition: "width 0.6s ease",
+        }} />
+      </div>
+    </div>
+  );
+}
+
+function BatteryIcon({ level }: { level: number }) {
+  const segments = 5;
+  const filledCount = Math.ceil((level / 100) * segments);
+  const color = level < 30 ? "#ff4444" : level < 60 ? "#ff8800" : "#00ff88";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 2, marginRight: 12 }}>
+      {Array.from({ length: segments }).map((_, i) => (
+        <div
+          key={i}
+          style={{
+            width: 8,
+            height: 16 + i * 2,
+            borderRadius: 2,
+            background: i < filledCount ? color : "#222",
+            border: `1px solid ${i < filledCount ? color : '#333'}`,
+            transition: "all 0.3s ease",
+            boxShadow: i < filledCount ? `0 0 4px ${color}44` : "none",
+          }}
+        />
+      ))}
+      <div style={{ width: 3, height: 8, background: level > 0 ? color : '#222', borderRadius: '0 2px 2px 0', marginLeft: 1 }} />
     </div>
   );
 }
@@ -122,17 +342,20 @@ function App() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", backgroundColor: "#0f0f1a", color: "#e0e0e0", fontFamily: "monospace" }}>
-        Loading RAMWise Dashboard...
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", backgroundColor: "#0a0a14", color: "#e0e0e0", fontFamily: "'JetBrains Mono', monospace" }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: "1.5rem", marginBottom: 12, animation: "glowPulse 2s infinite", color: "#00ff88" }}>RAMWise</div>
+          <div style={{ color: "#555", fontSize: "0.85rem" }}>Initializing dashboard...</div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", backgroundColor: "#0f0f1a", color: "#ff4444", fontFamily: "monospace", flexDirection: "column", padding: "20px" }}>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", backgroundColor: "#0a0a14", color: "#ff4444", fontFamily: "'JetBrains Mono', monospace", flexDirection: "column", padding: "20px" }}>
         <div style={{ fontSize: "1.2rem", marginBottom: "12px" }}>{error}</div>
-        <div style={{ color: "#888", fontSize: "0.85rem" }}>Run: uvicorn api.main:app --reload --port 8000</div>
+        <div style={{ color: "#555", fontSize: "0.85rem" }}>Run: uvicorn api.main:app --reload --port 8000</div>
       </div>
     );
   }
@@ -147,13 +370,22 @@ function App() {
       : "#4488ff"
     : "#4488ff";
 
+  const tierIcon = allocation?.cache_tier === "HOT" ? "\uD83D\uDD25" : allocation?.cache_tier === "WARM" ? "\uD83C\uDF21\uFE0F" : "\u2744\uFE0F";
+  const latestRam = ramHistory.length > 0 ? ramHistory[ramHistory.length - 1].ram : 0;
+  const latestCpu = ramHistory.length > 0 ? ramHistory[ramHistory.length - 1].cpu : 0;
+  const currentAppName = APP_SEQUENCE[currentAppIndex % APP_SEQUENCE.length];
+
   return (
-    <div style={{ fontFamily: "monospace", backgroundColor: "#0f0f1a", minHeight: "100vh", color: "#e0e0e0", padding: "20px" }}>
-      <div style={{ textAlign: "center", marginBottom: "30px" }}>
-        <h1 style={{ color: "#00ff88", fontSize: "2rem", margin: 0 }}>RAMWise Dashboard</h1>
-        <p style={{ color: "#888", margin: "8px 0 0 0" }}>Context-Aware Adaptive Memory Management</p>
+    <div className="ramwise-grid-bg" style={{ fontFamily: "'JetBrains Mono', monospace", background: "linear-gradient(135deg, #0a0a14 0%, #0d0d1a 50%, #0a0f1a 100%)", minHeight: "100vh", color: "#e0e0e0", padding: "20px" }}>
+      <style>{GLOBAL_STYLES}</style>
+
+      {/* HEADER */}
+      <div style={{ textAlign: "center", marginBottom: "30px", position: 'relative' }}>
+        <h1 style={{ color: "#00ff88", fontSize: "2rem", margin: 0, letterSpacing: '0.05em' }}>RAMWise</h1>
+        <p style={{ color: "#555", margin: "8px 0 0 0", fontSize: "0.75rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>Context-Aware Adaptive Memory Management</p>
       </div>
 
+      {/* METRICS ROW */}
       <div style={{ display: "flex", marginBottom: "20px" }}>
         <MetricsCard label="Total Records" value={String(metrics?.total_telemetry_records ?? 0)} color="#4488ff" />
         <MetricsCard label="Avg RAM Usage" value={`${(metrics?.average_ram_usage ?? 0).toFixed(1)}%`} color="#00ff88" />
@@ -161,66 +393,113 @@ function App() {
         <MetricsCard label="Avg Battery" value={`${(metrics?.average_battery_level ?? 0).toFixed(1)}%`} color="#ff6b6b" />
       </div>
 
-      <div style={{ background: "#1a1a2e", borderRadius: "8px", padding: "16px", marginBottom: "20px", border: "1px solid #333" }}>
-        <div style={{ color: "#e0e0e0", fontSize: "0.9rem", marginBottom: "12px" }}>Live RAM & CPU Usage</div>
+      {/* LIVE CHART */}
+      <div style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: "8px", padding: "16px", marginBottom: "20px", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 4px 24px rgba(0,0,0,0.4)", position: 'relative' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: "12px" }}>
+          <span style={{ color: "#888", fontSize: "0.85rem", letterSpacing: "0.05em" }}>Live RAM & CPU Usage</span>
+          <div style={{ display: 'flex', gap: 16 }}>
+            <span style={{ color: "#00ff88", fontSize: "0.75rem", fontFamily: "'JetBrains Mono', monospace" }}>RAM: {latestRam}%</span>
+            <span style={{ color: "#ff6b6b", fontSize: "0.75rem", fontFamily: "'JetBrains Mono', monospace" }}>CPU: {latestCpu}%</span>
+          </div>
+        </div>
         <ResponsiveContainer width="100%" height={250}>
           <LineChart data={ramHistory}>
-            <CartesianGrid stroke="#333" />
-            <XAxis dataKey="time" stroke="#888" tick={{ fontSize: 10 }} />
-            <YAxis domain={[0, 100]} stroke="#888" />
-            <Tooltip contentStyle={{ background: "#1a1a2e", border: "1px solid #333" }} />
-            <Legend />
-            <Line type="monotone" dataKey="ram" stroke="#00ff88" strokeWidth={2} dot={false} name="RAM %" />
-            <Line type="monotone" dataKey="cpu" stroke="#ff6b6b" strokeWidth={2} dot={false} name="CPU %" />
+            <CartesianGrid stroke="#1a1a2e" />
+            <XAxis dataKey="time" stroke="#444" tick={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace" }} />
+            <YAxis domain={[0, 100]} stroke="#444" tick={{ fontSize: 9 }} />
+            <Tooltip contentStyle={{ background: "#12121e", border: "1px solid #333", fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }} />
+            <Legend wrapperStyle={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }} />
+            <Line className="glow-line-ram" type="monotone" dataKey="ram" stroke="#00ff88" strokeWidth={2} dot={false} name="RAM %" />
+            <Line className="glow-line-cpu" type="monotone" dataKey="cpu" stroke="#ff6b6b" strokeWidth={2} dot={false} name="CPU %" />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
+      {/* MIDDLE ROW */}
       <div style={{ display: "flex", marginBottom: "20px" }}>
-        <div style={{ flex: 1, background: "#1a1a2e", borderRadius: "8px", padding: "16px", margin: "0 8px", border: "1px solid #333" }}>
-          <div style={{ color: "#e0e0e0", fontSize: "0.9rem", marginBottom: "12px" }}>Cache Tiers</div>
-          <CacheTierBox tier="HOT" label="🔴 HOT — Fully Active in RAM" color="#ff4444" isActive={allocation?.cache_tier === "HOT"} app={allocation?.target_app ?? ""} />
-          <CacheTierBox tier="WARM" label="🟠 WARM — Partially Retained" color="#ff8800" isActive={allocation?.cache_tier === "WARM"} app={allocation?.target_app ?? ""} />
-          <CacheTierBox tier="COLD" label="🔵 COLD — Evicted from Active Memory" color="#4444ff" isActive={allocation?.cache_tier === "COLD"} app={allocation?.target_app ?? ""} />
+        {/* CACHE TIERS */}
+        <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: "8px", padding: "16px", margin: "0 8px", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 4px 24px rgba(0,0,0,0.4)" }}>
+          <div style={{ color: "#888", fontSize: "0.85rem", marginBottom: "12px", letterSpacing: "0.05em" }}>Cache Tiers</div>
+          <CacheTierBox tier="HOT" label={`\uD83D\uDD25 HOT \u2014 Fully Active in RAM`} color="#ff4444" isActive={allocation?.cache_tier === "HOT"} app={allocation?.target_app ?? ""} />
+          <CacheTierBox tier="WARM" label={`\uD83C\uDF21\uFE0F WARM \u2014 Partially Retained`} color="#ff8800" isActive={allocation?.cache_tier === "WARM"} app={allocation?.target_app ?? ""} />
+          <CacheTierBox tier="COLD" label={`\u2744\uFE0F COLD \u2014 Evicted from Active Memory`} color="#4444ff" isActive={allocation?.cache_tier === "COLD"} app={allocation?.target_app ?? ""} />
         </div>
 
-        <div style={{ flex: 1, background: "#1a1a2e", borderRadius: "8px", padding: "16px", margin: "0 8px", border: "1px solid #333" }}>
-          <div style={{ color: "#e0e0e0", fontSize: "0.9rem", marginBottom: "12px" }}>
+        {/* PREDICTIONS */}
+        <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: "8px", padding: "16px", margin: "0 8px", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 4px 24px rgba(0,0,0,0.4)" }}>
+          <div style={{ color: "#888", fontSize: "0.85rem", marginBottom: "12px", letterSpacing: "0.05em" }}>
             Next App Predictions
             {predictions && (
-              <span style={{ background: "#333", borderRadius: "12px", padding: "2px 8px", fontSize: "0.65rem", marginLeft: "8px" }}>
+              <span style={{ background: "#1a2a1a", border: "1px solid #00ff8833", borderRadius: "12px", padding: "2px 8px", fontSize: "0.6rem", marginLeft: "8px", color: "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>
                 {predictions.method}
               </span>
             )}
           </div>
           {predictions ? (
             predictions.predicted_apps.map((app, i) => (
-              <PredictionRow key={app} app={app} confidence={predictions.confidence_scores[i] ?? 0} />
+              <PredictionRow key={app} app={app} confidence={predictions.confidence_scores[i] ?? 0} rank={i} />
             ))
           ) : (
-            <div style={{ color: "#666", fontSize: "0.8rem" }}>Waiting for data...</div>
+            <div style={{ color: "#444", fontSize: "0.8rem" }}>Waiting for data...</div>
           )}
         </div>
 
-        <div style={{ flex: 1, background: "#1a1a2e", borderRadius: "8px", padding: "16px", margin: "0 8px", border: "1px solid #333" }}>
+        {/* RL DECISION */}
+        <div style={{
+          flex: 1,
+          background: allocation
+            ? allocation.cache_tier === "HOT"
+              ? "rgba(255, 68, 68, 0.08)"
+              : allocation.cache_tier === "WARM"
+              ? "rgba(255, 136, 0, 0.08)"
+              : "rgba(68, 68, 255, 0.08)"
+            : "rgba(255,255,255,0.04)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          borderRadius: "8px",
+          padding: "16px",
+          margin: "0 8px",
+          border: allocation
+            ? allocation.cache_tier === "HOT"
+              ? "1px solid rgba(255, 68, 68, 0.25)"
+              : allocation.cache_tier === "WARM"
+              ? "1px solid rgba(255, 136, 0, 0.25)"
+              : "1px solid rgba(68, 68, 255, 0.25)"
+            : "1px solid rgba(255,255,255,0.08)",
+          transition: "background 0.6s ease, border 0.6s ease",
+        }}>
           <div style={{ color: "#e0e0e0", fontSize: "0.9rem", marginBottom: "12px" }}>RL Memory Decision</div>
           {allocation ? (
             <div>
-              <div style={{ color: actionColor, fontSize: "1.1rem", fontWeight: "bold", marginBottom: "8px" }}>
+              <div style={{ color: actionColor, fontSize: "1.1rem", fontWeight: "bold", marginBottom: "8px", letterSpacing: "0.05em" }}>
                 {allocation.action.replace(/_/g, " ").toUpperCase()}
               </div>
-              <div style={{ fontSize: "0.9rem", marginBottom: "8px" }}>→ {allocation.target_app}</div>
+              <div style={{ fontSize: "0.9rem", marginBottom: "8px", color: "#ccc" }}>{"->"} {allocation.target_app}</div>
               <div style={{
                 display: "inline-block",
-                background: allocation.cache_tier === "HOT" ? "#ff4444" : allocation.cache_tier === "WARM" ? "#ff8800" : "#4444ff",
+                background: allocation.cache_tier === "HOT"
+                  ? "rgba(255,68,68,0.2)"
+                  : allocation.cache_tier === "WARM"
+                  ? "rgba(255,136,0,0.2)"
+                  : "rgba(68,68,255,0.2)",
+                border: allocation.cache_tier === "HOT"
+                  ? "1px solid rgba(255,68,68,0.5)"
+                  : allocation.cache_tier === "WARM"
+                  ? "1px solid rgba(255,136,0,0.5)"
+                  : "1px solid rgba(68,68,255,0.5)",
                 borderRadius: "12px",
                 padding: "2px 10px",
                 fontSize: "0.75rem",
                 marginBottom: "8px",
+                color: allocation.cache_tier === "HOT" ? "#ff6666" : allocation.cache_tier === "WARM" ? "#ffaa44" : "#6688ff",
+                fontWeight: "600",
+                letterSpacing: "0.08em",
               }}>
                 {allocation.cache_tier}
               </div>
-              <div style={{ color: "#888", fontSize: "0.75rem", fontStyle: "italic", marginTop: "8px" }}>{allocation.reason}</div>
+              <div style={{ color: "#777", fontSize: "0.72rem", fontStyle: "italic", marginTop: "8px", lineHeight: "1.5" }}>
+                {allocation.reason}
+              </div>
             </div>
           ) : (
             <div style={{ color: "#666", fontSize: "0.8rem" }}>Waiting for RL decision...</div>
@@ -228,38 +507,44 @@ function App() {
         </div>
       </div>
 
-      <div style={{ background: "#1a1a2e", borderRadius: "8px", padding: "16px", marginBottom: "20px", border: "1px solid #333" }}>
-        <div style={{ color: "#e0e0e0", fontSize: "0.9rem", marginBottom: "12px" }}>Battery Level Simulation</div>
-        <input
-          type="range"
-          min={10}
-          max={100}
-          step={5}
-          value={batteryLevel}
-          onChange={(e) => setBatteryLevel(Number(e.target.value))}
-          style={{ width: "100%", accentColor: batteryLevel < 30 ? "#ff4444" : batteryLevel < 60 ? "#ff8800" : "#00ff88" }}
-        />
+      {/* BATTERY SLIDER */}
+      <div style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: "8px", padding: "16px", marginBottom: "20px", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 4px 24px rgba(0,0,0,0.4)" }}>
+        <div style={{ color: "#888", fontSize: "0.85rem", marginBottom: "12px", letterSpacing: "0.05em" }}>Battery Level Simulation</div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <BatteryIcon level={batteryLevel} />
+          <input
+            type="range"
+            min={10}
+            max={100}
+            step={5}
+            value={batteryLevel}
+            onChange={(e) => setBatteryLevel(Number(e.target.value))}
+            className={batteryLevel < 30 ? "battery-warning" : ""}
+            style={{ flex: 1, accentColor: batteryLevel < 30 ? "#ff4444" : batteryLevel < 60 ? "#ff8800" : "#00ff88" }}
+          />
+        </div>
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px" }}>
-          <span style={{ color: batteryLevel < 30 ? "#ff4444" : batteryLevel < 60 ? "#ff8800" : "#00ff88", fontWeight: "bold" }}>
+          <span style={{ color: batteryLevel < 30 ? "#ff4444" : batteryLevel < 60 ? "#ff8800" : "#00ff88", fontWeight: "bold", fontFamily: "'JetBrains Mono', monospace" }}>
             Battery: {batteryLevel}%
           </span>
-          <span style={{ color: "#666", fontSize: "0.75rem" }}>Adjust battery to see how RAMWise adapts allocation strategy</span>
+          <span style={{ color: "#444", fontSize: "0.7rem" }}>Adjust battery to see how RAMWise adapts allocation strategy</span>
         </div>
       </div>
 
-      <div style={{ background: "#1a1a2e", borderRadius: "8px", padding: "16px", marginBottom: "20px", border: "1px solid #333" }}>
-        <div style={{ color: "#e0e0e0", fontSize: "0.9rem", marginBottom: "12px" }}>RAMWise vs LRU Benchmark</div>
+      {/* BENCHMARK */}
+      <div style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: "8px", padding: "16px", marginBottom: "20px", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 4px 24px rgba(0,0,0,0.4)" }}>
+        <div style={{ color: "#888", fontSize: "0.85rem", marginBottom: "12px", letterSpacing: "0.05em" }}>RAMWise vs LRU Benchmark</div>
         {benchmark ? (
           <div>
-            <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
-              <span style={{ background: "#0a2a0a", border: "1px solid #00ff88", borderRadius: "12px", padding: "4px 12px", fontSize: "0.75rem", color: "#00ff88" }}>
-                Latency: -{benchmark.latency_improvement_percent}% faster
+            <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: 'wrap' }}>
+              <span style={{ background: "#0a2a0a", border: "1px solid #00ff88", borderRadius: "12px", padding: "4px 12px", fontSize: "0.7rem", color: "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>
+                {"\u2705"} LATENCY: -{benchmark.latency_improvement_percent}%
               </span>
-              <span style={{ background: "#0a2a0a", border: "1px solid #00ff88", borderRadius: "12px", padding: "4px 12px", fontSize: "0.75rem", color: "#00ff88" }}>
-                Cache: +{benchmark.cache_improvement_percent}% hit rate
+              <span style={{ background: "#0a2a0a", border: "1px solid #00ff88", borderRadius: "12px", padding: "4px 12px", fontSize: "0.7rem", color: "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>
+                {"\u2705"} HIT RATE: +{benchmark.cache_improvement_percent}%
               </span>
-              <span style={{ background: "#0a2a0a", border: "1px solid #00ff88", borderRadius: "12px", padding: "4px 12px", fontSize: "0.75rem", color: "#00ff88" }}>
-                Thrashing: -{benchmark.thrashing_improvement_percent}% reduction
+              <span style={{ background: "#0a2a0a", border: "1px solid #00ff88", borderRadius: "12px", padding: "4px 12px", fontSize: "0.7rem", color: "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>
+                {"\u2705"} THRASHING: -{benchmark.thrashing_improvement_percent}%
               </span>
             </div>
             <ResponsiveContainer width="100%" height={300}>
@@ -268,26 +553,37 @@ function App() {
                 { metric: "Cache Hit Rate", LRU: benchmark.lru_cache_hit_rate, RAMWise: benchmark.ramwise_cache_hit_rate },
                 { metric: "Thrashing Rate", LRU: benchmark.lru_thrashing, RAMWise: benchmark.ramwise_thrashing },
               ]}>
-                <CartesianGrid stroke="#333" />
-                <XAxis dataKey="metric" stroke="#888" tick={{ fontSize: 11 }} />
-                <YAxis stroke="#888" />
-                <Tooltip contentStyle={{ background: "#1a1a2e", border: "1px solid #333" }} />
-                <Legend />
-                <Bar dataKey="LRU" fill="#ff4444" />
-                <Bar dataKey="RAMWise" fill="#00ff88" />
+                <CartesianGrid stroke="#1a1a2e" />
+                <XAxis dataKey="metric" stroke="#555" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }} />
+                <YAxis stroke="#555" tick={{ fontSize: 9 }} />
+                <Tooltip contentStyle={{ background: "#12121e", border: "1px solid #333", fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }} />
+                <Legend wrapperStyle={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }} />
+                <defs>
+                  <linearGradient id="gradLru" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#ff4444" stopOpacity={0.8} />
+                    <stop offset="100%" stopColor="#ff4444" stopOpacity={0.2} />
+                  </linearGradient>
+                  <linearGradient id="gradRamwise" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#00ff88" stopOpacity={0.8} />
+                    <stop offset="100%" stopColor="#00ff88" stopOpacity={0.2} />
+                  </linearGradient>
+                </defs>
+                <Bar dataKey="LRU" fill="url(#gradLru)" />
+                <Bar dataKey="RAMWise" fill="url(#gradRamwise)" />
               </BarChart>
             </ResponsiveContainer>
           </div>
         ) : (
-          <div style={{ color: "#666", fontSize: "0.8rem" }}>Loading benchmark data...</div>
+          <div style={{ color: "#444", fontSize: "0.8rem" }}>Loading benchmark data...</div>
         )}
       </div>
 
-      <div style={{ background: "#1a1a2e", borderRadius: "8px", padding: "16px", marginBottom: "20px", border: "1px solid #333" }}>
+      {/* PREDICTION FEED */}
+      <div style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: "8px", padding: "16px", marginBottom: "20px", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 4px 24px rgba(0,0,0,0.4)" }}>
         <PredictionFeed />
       </div>
 
-      <p style={{ textAlign: "center", color: "#444", marginTop: "40px" }}>RAMWise — Context-Aware Adaptive Memory Management | Built with FastAPI + PyTorch + PPO + React</p>
+      <p style={{ textAlign: "center", color: "#333", marginTop: "40px", fontSize: "0.7rem", letterSpacing: "0.1em" }}>RAMWise -- Context-Aware Adaptive Memory Management | FastAPI + PyTorch + PPO + React</p>
     </div>
   );
 }

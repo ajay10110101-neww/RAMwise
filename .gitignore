@@ -16,6 +16,7 @@ env/
 
 # SQLite databases
 *.db
+*.db-journal
 
 # Per-user model weights (too many large files — keep out of git)
 datasets/ubiqlog/per_user/*.pth

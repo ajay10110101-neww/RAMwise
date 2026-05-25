@@ -26,6 +26,53 @@ interface PredictionEntry {
   isSeed: boolean;
 }
 
+const FEED_STYLES = `
+@keyframes slideInDown {
+  from { transform: translateY(-20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes fadeGlow {
+  0% { box-shadow: 0 0 15px rgba(0,255,136,0.5); border-left-color: #00ff88; }
+  100% { box-shadow: none; border-left-color: #333; }
+}
+@keyframes shimmerFeed {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes chainPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.feed-entry-new {
+  animation: slideInDown 0.4s ease forwards;
+}
+.feed-entry-glow {
+  animation: fadeGlow 2s ease forwards;
+}
+.shimmer-top-badge {
+  background: linear-gradient(90deg, #1b5e20 25%, #2e7d32 50%, #1b5e20 75%);
+  background-size: 200% 100%;
+  animation: shimmerFeed 2s infinite;
+}
+.chain-icon-pulse {
+  animation: chainPulse 1.5s ease infinite;
+}
+.seed-glow {
+  box-shadow: 0 0 8px rgba(76,175,80,0.4);
+}
+.chain-glow {
+  box-shadow: 0 0 8px rgba(0,255,255,0.3);
+}
+.prediction-feed-scroll {
+  overflow-y: auto;
+  max-height: 600px;
+}
+.prediction-feed-scroll::-webkit-scrollbar { width: 6px; }
+.prediction-feed-scroll::-webkit-scrollbar-track { background: #0a0a14; }
+.prediction-feed-scroll::-webkit-scrollbar-thumb { background: #222; border-radius: 3px; }
+`;
+
 export default function PredictionFeed() {
   const [feed, setFeed] = useState<PredictionEntry[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -83,80 +130,107 @@ export default function PredictionFeed() {
   }, []);
 
   return (
-    <div style={{ fontFamily: "monospace", padding: 16 }}>
+    <div style={{ fontFamily: "'JetBrains Mono', monospace", padding: 0 }}>
+      <style>{FEED_STYLES}</style>
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h3 style={{ margin: 0, color: "#e0e0e0" }}>Chaining Prediction Feed</h3>
-        <span style={{ color: "#888", fontSize: 12 }}>
-          {totalCount} predictions | {SEED_SEQUENCES.length} seeds
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ color: "#00ff88", fontSize: "0.85rem", letterSpacing: "0.1em" }}>[ RAMWISE PREDICTION ENGINE ]</span>
+          <span style={{ animation: "chainPulse 1s infinite", color: "#00ff88" }}>|</span>
+        </div>
+        <span style={{ color: "#00ff88", fontSize: "0.7rem", fontFamily: "'JetBrains Mono', monospace" }}>
+          TX: {totalCount}
         </span>
       </div>
 
-      {feed.map((entry, i) => (
-        <div
-          key={i}
-          style={{
-            borderLeft: `3px solid ${entry.isSeed ? "#2196f3" : "#4caf50"}`,
-            marginBottom: 10,
-            paddingLeft: 12,
-            opacity: 1 - i * 0.035,
-            background: i === 0 ? "rgba(255,255,255,0.03)" : "transparent",
-            borderRadius: 4,
-            padding: "8px 12px",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-            <span style={{ color: "#888", fontSize: 11 }}>{entry.timestamp}</span>
-            <span
-              style={{
-                background: entry.isSeed ? "#1565c0" : "#2e7d32",
-                color: "#fff",
-                padding: "1px 6px",
-                borderRadius: 8,
-                fontSize: 10,
-              }}
-            >
-              {entry.isSeed ? "🌱 seed" : "⛓ chain"}
-            </span>
-          </div>
-
-          <div style={{ marginBottom: 4 }}>
-            {entry.input.map((app, j) => (
-              <span key={j}>
-                <span style={{ color: "#ccc", fontSize: 12 }}>{app}</span>
-                {j < entry.input.length - 1 && (
-                  <span style={{ color: "#555", margin: "0 4px" }}>→</span>
-                )}
-              </span>
-            ))}
-          </div>
-
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 4 }}>
-            {entry.predicted.map((app, j) => (
-              <span
-                key={j}
-                style={{
-                  background: j === 0 ? "#1b5e20" : "#2e2e2e",
-                  color: "#fff",
-                  padding: "2px 8px",
-                  borderRadius: 4,
-                  fontSize: 11,
-                }}
-              >
-                {app} {(entry.confidence[j] * 100).toFixed(1)}%
-              </span>
-            ))}
-          </div>
-
-          <span
+      <div className="prediction-feed-scroll">
+        {feed.map((entry, i) => (
+          <div
+            key={i}
+            className={i === 0 ? "feed-entry-new feed-entry-glow" : ""}
             style={{
-              fontSize: 10,
-              color: entry.method === "transformer" ? "#4caf50" : "#ff9800",
+              borderLeft: `3px solid ${entry.isSeed ? "#4caf50" : "#00bcd4"}`,
+              marginBottom: 10,
+              paddingLeft: 12,
+              opacity: Math.max(0.15, 1 - i * 0.06),
+              background: i === 0 ? "rgba(0,255,136,0.03)" : "transparent",
+              borderRadius: 4,
+              padding: "8px 12px",
+              transition: "opacity 0.3s ease",
             }}
           >
-            via {entry.method}
-          </span>
-        </div>
-      ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <span style={{ color: "#555", fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>{entry.timestamp}</span>
+              <span
+                className={entry.isSeed ? "seed-glow" : "chain-glow"}
+                style={{
+                  background: entry.isSeed ? "#1b3a1b" : "#0a2a2a",
+                  border: `1px solid ${entry.isSeed ? "#4caf5066" : "#00bcd466"}`,
+                  color: entry.isSeed ? "#4caf50" : "#00bcd4",
+                  padding: "1px 8px",
+                  borderRadius: 8,
+                  fontSize: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                {entry.isSeed ? "\uD83C\uDF31 seed" : <span className="chain-icon-pulse">{"\u26D3"} chain</span>}
+              </span>
+            </div>
+
+            <div style={{ marginBottom: 6, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
+              {entry.input.map((app, j) => (
+                <span key={j} style={{ display: "inline-flex", alignItems: "center" }}>
+                  <span style={{
+                    background: "#1a2a3a",
+                    border: "1px solid #334",
+                    borderRadius: 12,
+                    padding: "2px 8px",
+                    color: "#ccc",
+                    fontSize: 11,
+                  }}>{app}</span>
+                  {j < entry.input.length - 1 && (
+                    <span style={{ color: "#00bcd4", margin: "0 3px", fontSize: 14, fontWeight: "bold", textShadow: "0 0 6px rgba(0,188,212,0.5)" }}>{"\u203A"}</span>
+                  )}
+                </span>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+              {entry.predicted.map((app, j) => (
+                <span
+                  key={j}
+                  className={j === 0 ? "shimmer-top-badge" : ""}
+                  style={{
+                    background: j === 0 ? undefined : "#1a1a2e",
+                    border: j === 0 ? "1px solid #4caf5066" : "1px solid #222",
+                    color: j === 0 ? "#fff" : "#666",
+                    padding: "2px 8px",
+                    borderRadius: 12,
+                    fontSize: 10,
+                    fontWeight: j === 0 ? 600 : 400,
+                  }}
+                >
+                  {app} {(entry.confidence[j] * 100).toFixed(1)}%
+                </span>
+              ))}
+            </div>
+
+            <span style={{
+              fontSize: 9,
+              color: entry.method === "transformer" ? "#4caf50" : "#ff9800",
+              background: entry.method === "transformer" ? "#0a1a0a" : "#1a1000",
+              border: `1px solid ${entry.method === "transformer" ? "#4caf5033" : "#ff980033"}`,
+              padding: "1px 6px",
+              borderRadius: 4,
+              fontFamily: "'JetBrains Mono', monospace",
+            }}>
+              [ {entry.method} ]
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
