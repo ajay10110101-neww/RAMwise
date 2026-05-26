@@ -48,14 +48,6 @@ const GLOBAL_STYLES = `
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
 }
-@keyframes typewriter {
-  from { width: 0; }
-  to { width: 100%; }
-}
-@keyframes glowPulse {
-  0%, 100% { text-shadow: 0 0 10px rgba(0,255,136,0.3); }
-  50% { text-shadow: 0 0 30px rgba(0,255,136,0.8), 0 0 60px rgba(0,255,136,0.4); }
-}
 
 body {
   margin: 0;
@@ -107,30 +99,6 @@ body {
   );
 }
 
-.confidence-bar-animated div {
-  transition: width 0.6s ease;
-}
-
-.shimmer-badge {
-  background: linear-gradient(90deg, #1b5e20 25%, #2e7d32 50%, #1b5e20 75%);
-  background-size: 200% 100%;
-  animation: shimmer 2s infinite;
-}
-
-.action-slide-up {
-  animation: slideUp 0.4s ease forwards;
-}
-
-.reason-typewriter {
-  overflow: hidden;
-  white-space: nowrap;
-  animation: typewriter 1.5s steps(60) forwards;
-}
-
-.battery-warning {
-  animation: warningFlash 0.8s ease infinite;
-}
-
 .metric-spark {
   display: inline-block;
   width: 8px;
@@ -139,38 +107,10 @@ body {
   animation: pulse 1.5s ease infinite;
 }
 
-.custom-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-.custom-scroll::-webkit-scrollbar-track {
-  background: #0f0f1a;
-}
-.custom-scroll::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 3px;
+.battery-warning {
+  animation: warningFlash 0.8s ease infinite;
 }
 `;
-
-function TypewriterText({ text }: { text: string }) {
-  const [displayed, setDisplayed] = useState('');
-  const indexRef = useRef(0);
-
-  useEffect(() => {
-    setDisplayed('');
-    indexRef.current = 0;
-    const interval = setInterval(() => {
-      if (indexRef.current < text.length) {
-        setDisplayed(text.slice(0, indexRef.current + 1));
-        indexRef.current++;
-      } else {
-        clearInterval(interval);
-      }
-    }, 20);
-    return () => clearInterval(interval);
-  }, [text]);
-
-  return <span>{displayed}<span style={{ animation: 'cursorBlink 1s infinite', color: '#888' }}>|</span></span>;
-}
 
 function MetricsCard({ label, value, color }: { label: string; value: string; color: string }) {
   return (
@@ -342,9 +282,9 @@ function App() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", backgroundColor: "#0a0a14", color: "#e0e0e0", fontFamily: "'JetBrains Mono', monospace" }}>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", background: "linear-gradient(135deg, #0a0a14 0%, #0d0d1a 50%, #0a0f1a 100%)", color: "#e0e0e0", fontFamily: "'JetBrains Mono', monospace" }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: "1.5rem", marginBottom: 12, animation: "glowPulse 2s infinite", color: "#00ff88" }}>RAMWise</div>
+          <div style={{ fontSize: "1.5rem", marginBottom: 12, color: "#00ff88" }}>RAMWise</div>
           <div style={{ color: "#555", fontSize: "0.85rem" }}>Initializing dashboard...</div>
         </div>
       </div>
@@ -353,7 +293,7 @@ function App() {
 
   if (error) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", backgroundColor: "#0a0a14", color: "#ff4444", fontFamily: "'JetBrains Mono', monospace", flexDirection: "column", padding: "20px" }}>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", background: "linear-gradient(135deg, #0a0a14 0%, #0d0d1a 50%, #0a0f1a 100%)", color: "#ff4444", fontFamily: "'JetBrains Mono', monospace", flexDirection: "column", padding: "20px" }}>
         <div style={{ fontSize: "1.2rem", marginBottom: "12px" }}>{error}</div>
         <div style={{ color: "#555", fontSize: "0.85rem" }}>Run: uvicorn api.main:app --reload --port 8000</div>
       </div>
@@ -370,17 +310,15 @@ function App() {
       : "#4488ff"
     : "#4488ff";
 
-  const tierIcon = allocation?.cache_tier === "HOT" ? "\uD83D\uDD25" : allocation?.cache_tier === "WARM" ? "\uD83C\uDF21\uFE0F" : "\u2744\uFE0F";
   const latestRam = ramHistory.length > 0 ? ramHistory[ramHistory.length - 1].ram : 0;
   const latestCpu = ramHistory.length > 0 ? ramHistory[ramHistory.length - 1].cpu : 0;
-  const currentAppName = APP_SEQUENCE[currentAppIndex % APP_SEQUENCE.length];
 
   return (
     <div className="ramwise-grid-bg" style={{ fontFamily: "'JetBrains Mono', monospace", background: "linear-gradient(135deg, #0a0a14 0%, #0d0d1a 50%, #0a0f1a 100%)", minHeight: "100vh", color: "#e0e0e0", padding: "20px" }}>
       <style>{GLOBAL_STYLES}</style>
 
       {/* HEADER */}
-      <div style={{ textAlign: "center", marginBottom: "30px", position: 'relative' }}>
+      <div style={{ textAlign: "center", marginBottom: "30px" }}>
         <h1 style={{ color: "#00ff88", fontSize: "2rem", margin: 0, letterSpacing: '0.05em' }}>RAMWise</h1>
         <p style={{ color: "#555", margin: "8px 0 0 0", fontSize: "0.75rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>Context-Aware Adaptive Memory Management</p>
       </div>
@@ -394,7 +332,7 @@ function App() {
       </div>
 
       {/* LIVE CHART */}
-      <div style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: "8px", padding: "16px", marginBottom: "20px", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 4px 24px rgba(0,0,0,0.4)", position: 'relative' }}>
+      <div style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: "8px", padding: "16px", marginBottom: "20px", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 4px 24px rgba(0,0,0,0.4)" }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: "12px" }}>
           <span style={{ color: "#888", fontSize: "0.85rem", letterSpacing: "0.05em" }}>Live RAM & CPU Usage</span>
           <div style={{ display: 'flex', gap: 16 }}>
@@ -407,7 +345,7 @@ function App() {
             <CartesianGrid stroke="#1a1a2e" />
             <XAxis dataKey="time" stroke="#444" tick={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace" }} />
             <YAxis domain={[0, 100]} stroke="#444" tick={{ fontSize: 9 }} />
-            <Tooltip contentStyle={{ background: "#12121e", border: "1px solid #333", fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }} />
+            <Tooltip contentStyle={{ background: "rgba(10,10,20,0.9)", border: "1px solid #333", fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }} />
             <Legend wrapperStyle={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }} />
             <Line className="glow-line-ram" type="monotone" dataKey="ram" stroke="#00ff88" strokeWidth={2} dot={false} name="RAM %" />
             <Line className="glow-line-cpu" type="monotone" dataKey="cpu" stroke="#ff6b6b" strokeWidth={2} dot={false} name="CPU %" />
@@ -556,7 +494,7 @@ function App() {
                 <CartesianGrid stroke="#1a1a2e" />
                 <XAxis dataKey="metric" stroke="#555" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }} />
                 <YAxis stroke="#555" tick={{ fontSize: 9 }} />
-                <Tooltip contentStyle={{ background: "#12121e", border: "1px solid #333", fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }} />
+                <Tooltip contentStyle={{ background: "rgba(10,10,20,0.9)", border: "1px solid #333", fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }} />
                 <Legend wrapperStyle={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }} />
                 <defs>
                   <linearGradient id="gradLru" x1="0" y1="0" x2="0" y2="1">

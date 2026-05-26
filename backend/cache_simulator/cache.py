@@ -1,5 +1,5 @@
 class AdaptiveCache:
-    def __init__(self, hot_size=4, warm_size=6):
+    def __init__(self, hot_size=3, warm_size=5):
         self.hot = []
         self.warm = []
         self.cold = set()
@@ -73,7 +73,7 @@ class AdaptiveCache:
 
 
 class LRUCache:
-    def __init__(self, capacity=3):
+    def __init__(self, capacity=8):
         self.cache = []
         self.capacity = capacity
         self.hits = 0
@@ -85,7 +85,7 @@ class LRUCache:
             self.hits += 1
             self.cache.remove(app)
             self.cache.insert(0, app)
-            latency = 0.2
+            latency = 0.5
             return {"hit": True, "latency": latency}
         else:
             self.misses += 1
